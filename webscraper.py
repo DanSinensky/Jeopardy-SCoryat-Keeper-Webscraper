@@ -16,18 +16,18 @@ def scrapeGame():
   for x in range(1,6):
     for y in range(1,5):
       clue = soup.find('td', attrs={'id': f'clue_J_{x}_{y}'})
-      response = soup.find('td', attrs={'id': f'clue_J_{x}_{y}_r'})
+      response = soup.find('td', attrs={'id': f'clue_J_{x}_{y}_r'}).contents[0]
       if clue and response:
         jeopardy_clues.append(clue)
         jeopardy_responses.append(response)
 
       double_clue = soup.find('td', attrs={'id': f'clue_DJ_{x}_{y}'})
-      double_response = soup.find('td', attrs={'id': f'clue_DJ_{x}_{y}_r'})
+      double_response = soup.find('td', attrs={'id': f'clue_DJ_{x}_{y}_r'}).contents[0]
       if clue and response:
         double_jeopardy_clues.append(double_clue)
         double_jeopardy_responses.append(double_response)
   final_jeopardy_clue = soup.find('td', attrs={'id':'clue_FJ'})
-  final_jeoupardy_response = soup.find('td', attrs={'id':'clue_FJ_r'})
+  final_jeoupardy_response = soup.find('td', attrs={'id':'clue_FJ_r'}).contents[-1]
 
   for category, category_comment in zip(categories, category_comments):
     print(category.text + category_comment.text)
