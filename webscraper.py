@@ -39,15 +39,6 @@ def scrapeGame():
     else:
       final_jeopardy_response = response.text.strip()
 
-  # print(game_title.text + " - " + game_comments.text)
-  # for category, category_comment in zip(categories, category_comments):
-  #   print(category.text + category_comment.text)
-  # for jeopardy_clue, jeopardy_response in zip(jeopardy_clues, jeopardy_responses):
-  #   print(jeopardy_clue.text + " - " + jeopardy_response.text)
-  # for double_jeopardy_clue, double_jeopardy_response in zip(double_jeopardy_clues, double_jeopardy_responses):
-  #   print(double_jeopardy_clue.text + " - " + double_jeopardy_response.text)
-  # print(final_jeopardy_clue.text + " - " + final_jeopardy_response.text)
-
   return {
         'game_title': game_title,
         'game_comments': game_comments,
@@ -66,6 +57,7 @@ def scrapeGame():
             'response': final_jeopardy_response
         }
     }
+
 
 scraped_data = scrapeGame()
 
