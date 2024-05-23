@@ -4,9 +4,11 @@ import requests
 
 app = Flask(__name__)
 
-def scrapeGame():
-  pageToScrape = requests.get('https://j-archive.com/showgame.php?game_id=8792')
+def scrapeGame(game_id):
+  url = f'https://j-archive.com/showgame.php?game_id={game_id}'
+  pageToScrape = requests.get(url)
   soup = BeautifulSoup(pageToScrape.text, "html.parser")
+
 
   game_title = soup.find('div', attrs={'id':'game_title'}).contents[0].text.strip()
   game_comments = soup.find('div', attrs={'id':'game_comments'}).text.strip()
@@ -58,9 +60,9 @@ def scrapeGame():
         }
     }
 
-@app.route('/api/scrape', methods=['GET'])
-def api_scrape():
-    game_data = scrapeGame()
+@app.route('/api/scrape/<int:game_id>', methods=['GET'])
+def api_scrape(game_id):
+    game_data = scrapeGame(game_id)
     return jsonify(game_data)
 
 if __name__ == '__main__':
