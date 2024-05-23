@@ -58,36 +58,10 @@ def scrapeGame():
         }
     }
 
-
-scraped_data = scrapeGame()
-
-@app.route('/api/game_title', methods=['GET'])
-def api_game_title():
-    return jsonify({'game_title': scraped_data['game_title']})
-
-@app.route('/api/game_comments', methods=['GET'])
-def api_game_comments():
-    return jsonify({'game_comments': scraped_data['game_comments']})
-
-@app.route('/api/categories', methods=['GET'])
-def api_categories():
-    return jsonify({'categories': scraped_data['categories']})
-
-@app.route('/api/category_comments', methods=['GET'])
-def api_category_comments():
-    return jsonify({'category_comments': scraped_data['category_comments']})
-
-@app.route('/api/jeopardy_round', methods=['GET'])
-def api_jeopardy_round():
-    return jsonify(scraped_data['jeopardy_round'])
-
-@app.route('/api/double_jeopardy_round', methods=['GET'])
-def api_double_jeopardy_round():
-    return jsonify(scraped_data['double_jeopardy_round'])
-
-@app.route('/api/final_jeopardy', methods=['GET'])
-def api_final_jeopardy():
-    return jsonify(scraped_data['final_jeopardy'])
+@app.route('/api/scrape', methods=['GET'])
+def api_scrape():
+    game_data = scrapeGame()
+    return jsonify(game_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
