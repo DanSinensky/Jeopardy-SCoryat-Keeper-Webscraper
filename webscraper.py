@@ -4,6 +4,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.exceptions import RequestException
 from bs4 import BeautifulSoup
 import requests
+from datetime import datetime
+
+def extract_date_from_title(title):
+    try:
+        date_str = title.split("day, ")[-1]
+        date_obj = datetime.strptime(date_str, '%B %d, %Y')
+        return date_obj
+    except Exception as e:
+        print(f"Error extracting date from title: {e}")
+        return None
 
 def scrapeGame(game_id, retries=3):
     url = f'https://j-archive.com/showgame.php?game_id={game_id}'
@@ -22,6 +32,8 @@ def scrapeGame(game_id, retries=3):
                 return {'game_id': game_id, 'error': f'No game {game_id} in database'}
             game_title = soup.find('div', attrs={'id': 'game_title'})
             game_title_text = game_title.get_text(strip=True) if game_title else "Title not found"
+
+            game_date = extract_date_from_title(game_title_text)
 
             game_comments = soup.find('div', attrs={'id': 'game_comments'})
             game_comments_text = game_comments.get_text(strip=True) if game_comments else "Comments not found"
@@ -64,6 +76,7 @@ def scrapeGame(game_id, retries=3):
             return {
                 'game_id': game_id,
                 'game_title': game_title_text,
+                'game_date': game_date.isoformat() if game_date else None,
                 'game_comments': game_comments_text,
                 'categories': categories,
                 'category_comments': category_comments,
