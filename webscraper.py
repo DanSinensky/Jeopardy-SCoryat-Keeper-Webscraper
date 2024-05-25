@@ -1,95 +1,115 @@
 import json
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.exceptions import RequestException
 from bs4 import BeautifulSoup
 import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
-def scrapeGame(game_id):
+def scrapeGame(game_id, retries=3):
     url = f'https://j-archive.com/showgame.php?game_id={game_id}'
-    pageToScrape = requests.get(url)
-    
-    if pageToScrape.status_code != 200:
-        return {'game_id': game_id, 'error': 'Game not found or unable to retrieve the page'}
 
-    soup = BeautifulSoup(pageToScrape.text, "html.parser")
+    for attempt in range(retries):
+        try:
+            pageToScrape = requests.get(url, timeout=10)
+            
+            if pageToScrape.status_code != 200:
+                return {'game_id': game_id, 'error': 'Game not found or unable to retrieve the page'}
 
-    no_game = soup.find('p', attrs={'class': 'error'})
-    if no_game:
-        return {'game_id': game_id, 'error': f'No game {game_id} in database'}
+            soup = BeautifulSoup(pageToScrape.text, "html.parser")
 
-    game_title = soup.find('div', attrs={'id': 'game_title'})
-    game_title_text = game_title.get_text(strip=True) if game_title else "Title not found"
+            no_game = soup.find('p', attrs={'class': 'error'})
+            if no_game:
+                return {'game_id': game_id, 'error': f'No game {game_id} in database'}
+            game_title = soup.find('div', attrs={'id': 'game_title'})
+            game_title_text = game_title.get_text(strip=True) if game_title else "Title not found"
 
-    game_comments = soup.find('div', attrs={'id': 'game_comments'})
-    game_comments_text = game_comments.get_text(strip=True) if game_comments else "Comments not found"
+            game_comments = soup.find('div', attrs={'id': 'game_comments'})
+            game_comments_text = game_comments.get_text(strip=True) if game_comments else "Comments not found"
 
-    categories = [cat.get_text(strip=True) for cat in soup.findAll('td', attrs={'class': 'category_name'})]
-    category_comments = [com.get_text(strip=True) for com in soup.findAll('td', attrs={'class': 'category_comments'})]
+            categories = [cat.get_text(strip=True) for cat in soup.findAll('td', attrs={'class': 'category_name'})]
+            category_comments = [com.get_text(strip=True) for com in soup.findAll('td', attrs={'class': 'category_comments'})]
 
-    jeopardy_clues = []
-    jeopardy_responses = []
-    double_jeopardy_clues = []
-    double_jeopardy_responses = []
+            jeopardy_cells = []
+            jeopardy_clues = []
+            jeopardy_responses = []
+            double_jeopardy_cells = []
+            double_jeopardy_clues = []
+            double_jeopardy_responses = []
 
-    for y in range(1, 6):
-        for x in range(1, 7):
-            clue = soup.find('td', attrs={'id': f'clue_J_{x}_{y}'})
-            if clue:
-                jeopardy_clues.append(clue.get_text(strip=True))
+            for y in range(1, 6):
+                for x in range(1, 7):
+                    clue = soup.find('td', attrs={'id': f'clue_J_{x}_{y}'})
+                    if clue:
+                        jeopardy_clues.append(clue.get_text(strip=True))
+                        jeopardy_cells.append(f'J_{x}_{y}')
 
-            double_clue = soup.find('td', attrs={'id': f'clue_DJ_{x}_{y}'})
-            if double_clue:
-                double_jeopardy_clues.append(double_clue.get_text(strip=True))
+                    double_clue = soup.find('td', attrs={'id': f'clue_DJ_{x}_{y}'})
+                    if double_clue:
+                        double_jeopardy_clues.append(double_clue.get_text(strip=True))
+                        double_jeopardy_cells.append(f'DJ_{x}_{y}')
 
-    final_jeopardy_clue = soup.find('td', attrs={'id': 'clue_FJ'})
-    final_jeopardy_clue_text = final_jeopardy_clue.get_text(strip=True) if final_jeopardy_clue else "Final Jeopardy clue not found"
+            final_jeopardy_clue = soup.find('td', attrs={'id': 'clue_FJ'})
+            final_jeopardy_clue_text = final_jeopardy_clue.get_text(strip=True) if final_jeopardy_clue else "Final Jeopardy clue not found"
 
-    final_jeopardy_response = "Final Jeopardy response not found"
-    responses = soup.findAll('em', attrs={'class': 'correct_response'})
-    for count, response in enumerate(responses, start=1):
-        if count < 31:
-            jeopardy_responses.append(response.get_text(strip=True))
-        elif 30 < count < 61:
-            double_jeopardy_responses.append(response.get_text(strip=True))
-        elif count == 61:
-            final_jeopardy_response = response.get_text(strip=True)
+            final_jeopardy_response = "Final Jeopardy response not found"
+            responses = soup.findAll('em', attrs={'class': 'correct_response'})
+            for count, response in enumerate(responses, start=1):
+                if count <= len(jeopardy_clues):
+                    jeopardy_responses.append(response.get_text(strip=True))
+                elif len(jeopardy_clues) < count <= len(jeopardy_clues) + len(double_jeopardy_clues):
+                    double_jeopardy_responses.append(response.get_text(strip=True))
+                else:
+                    final_jeopardy_response = response.get_text(strip=True)
 
-    return {
-        'game_id': game_id,
-        'game_title': game_title_text,
-        'game_comments': game_comments_text,
-        'categories': categories,
-        'category_comments': category_comments,
-        'jeopardy_round': {
-            'clues': jeopardy_clues,
-            'responses': jeopardy_responses
-        },
-        'double_jeopardy_round': {
-            'clues': double_jeopardy_clues,
-            'responses': double_jeopardy_responses
-        },
-        'final_jeopardy': {
-            'clue': final_jeopardy_clue_text,
-            'response': final_jeopardy_response
-        }
-    }
+            return {
+                'game_id': game_id,
+                'game_title': game_title_text,
+                'game_comments': game_comments_text,
+                'categories': categories,
+                'category_comments': category_comments,
+                'jeopardy_round': {
+                    'clues': jeopardy_clues,
+                    'responses': jeopardy_responses,
+                    'cells': jeopardy_cells
+                },
+                'double_jeopardy_round': {
+                    'clues': double_jeopardy_clues,
+                    'responses': double_jeopardy_responses,
+                    'cells': double_jeopardy_cells
+                },
+                'final_jeopardy': {
+                    'clue': final_jeopardy_clue_text,
+                    'response': final_jeopardy_response
+                }
+            }
 
-def scrape_multiple_games(game_ids, max_workers=10):
-    all_games_data = []
+        except (RequestException, ConnectionResetError) as e:
+            print(f"Game ID {game_id} generated an exception: {e}")
+            if attempt < retries - 1:
+                sleep_time = 2 ** attempt
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                return {'game_id': game_id, 'error': 'Failed after multiple retries'}
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+def scrapeGames(game_ids):
+    results = []
+    with ThreadPoolExecutor(max_workers=20) as executor:
         future_to_game_id = {executor.submit(scrapeGame, game_id): game_id for game_id in game_ids}
-        
         for future in as_completed(future_to_game_id):
             game_id = future_to_game_id[future]
             try:
-                game_data = future.result()
-                all_games_data.append(game_data)
-            except Exception as exc:
-                print(f'Game ID {game_id} generated an exception: {exc}')
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                print(f"Game ID {game_id} generated an exception: {e}")
+                results.append({'game_id': game_id, 'error': str(e)})
 
-    with open('jeopardy_games.json', 'w') as f:
-        json.dump(all_games_data, f, indent=4)
+    return results
 
 if __name__ == "__main__":
-    game_ids = range(1, 10000)
-    scrape_multiple_games(game_ids)
+    game_ids = range(1, 10000) 
+    scraped_data = scrapeGames(game_ids)
+    
+    with open('jeopardy_games.json', 'w') as f:
+        json.dump(scraped_data, f, indent=4)
