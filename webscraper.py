@@ -124,19 +124,17 @@ def sort_key(entry):
     date_str = entry.get('game_date')
     if date_str:
         try:
-            return (datetime.strptime(date_str, "%Y-%m-%d"), 0)
+            return (-datetime.strptime(date_str, "%Y-%m-%d").timestamp(), 0)
         except ValueError:
             pass
-    return (datetime.max, entry.get('game_id'))
+    return (float('inf'), entry.get('game_id'))
 
 if __name__ == "__main__":
     game_ids = range(1, 10000)
     scraped_data = scrapeGames(game_ids)
 
-    # Sort the data
     sorted_jeopardy_games = sorted(scraped_data, key=sort_key)
 
-    # Write the sorted data to jeopardy_games.json
     with open('jeopardy_games.json', 'w') as f:
         json.dump(sorted_jeopardy_games, f, indent=4)
 
