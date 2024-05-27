@@ -76,7 +76,7 @@ def scrapeGame(game_id, retries=3):
             return {
                 'game_id': game_id,
                 'game_title': game_title_text,
-                'game_date': game_date.isoformat() if game_date else None,
+                'game_date': game_date.strftime('%Y-%m-%d') if game_date else None,
                 'game_comments': game_comments_text,
                 'categories': categories,
                 'category_comments': category_comments,
@@ -120,9 +120,24 @@ def scrapeGames(game_ids):
 
     return results
 
+def sort_key(entry):
+    date_str = entry.get('game_date')
+    if date_str:
+        try:
+            return (datetime.strptime(date_str, "%Y-%m-%d"), 0)
+        except ValueError:
+            pass
+    return (datetime.max, entry.get('game_id'))
+
 if __name__ == "__main__":
-    game_ids = range(1, 10000) 
+    game_ids = range(1, 10000)
     scraped_data = scrapeGames(game_ids)
-    
+
+    # Sort the data
+    sorted_jeopardy_games = sorted(scraped_data, key=sort_key)
+
+    # Write the sorted data to jeopardy_games.json
     with open('jeopardy_games.json', 'w') as f:
-        json.dump(scraped_data, f, indent=4)
+        json.dump(sorted_jeopardy_games, f, indent=4)
+
+    print("Data has been written to jeopardy_games.json")

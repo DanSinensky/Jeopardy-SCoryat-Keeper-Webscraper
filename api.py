@@ -20,7 +20,7 @@ def get_all_games():
         'page': page,
         'size': size,
         'total_games': len(games_data),
-        'total_pages': (len(games_data) + size - 1) // size,  # Calculate total pages
+        'total_pages': (len(games_data) + size - 1) // size,
         'games': paginated_games
     }
 
