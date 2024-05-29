@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 import json
+import os
 
 app = Flask(__name__)
 
@@ -26,7 +27,7 @@ def get_all_games():
 
     return jsonify(response)
 
-@app.route('/api/games/<int:game_id>', methods=['GET'])
+@app.route('/api/games/id/<int:game_id>', methods=['GET'])
 def get_game_by_id(game_id):
     for game in games_data:
         if 'error' not in game and game['game_id'] == game_id:
@@ -35,11 +36,10 @@ def get_game_by_id(game_id):
 
 @app.route('/api/games/date/<string:game_date>', methods=['GET'])
 def get_games_by_date(game_date):
-    matching_games = [game for game in games_data if game.get('game_date') == game_date]
-    
-    if matching_games:
-        return jsonify(matching_games)
-    return jsonify({'error': f'No games found for date {game_date}'}), 404
+    date_games = [game for game in games_data if game.get('game_date') and game_date in game['game_date']]
+    if not date_games:
+        return jsonify({'error': f'No games found for date {game_date}'}), 404
+    return jsonify(date_games)
 
 if __name__ == '__main__':
     app.run(debug=True)
