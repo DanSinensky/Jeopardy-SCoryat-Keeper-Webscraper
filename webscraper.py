@@ -5,6 +5,8 @@ from requests.exceptions import RequestException
 from bs4 import BeautifulSoup
 import requests
 from datetime import datetime
+import schedule
+import threading
 
 def extract_date_from_title(title):
     try:
@@ -76,7 +78,7 @@ def scrapeGame(game_id, retries=3):
             return {
                 'game_id': game_id,
                 'game_title': game_title_text,
-                'game_date': game_date.strftime('%Y-%m-%d') if game_date else None,
+                'game_date': game_date.isoformat() if game_date else None,
                 'game_comments': game_comments_text,
                 'categories': categories,
                 'category_comments': category_comments,
@@ -124,12 +126,12 @@ def sort_key(entry):
     date_str = entry.get('game_date')
     if date_str:
         try:
-            return (-datetime.strptime(date_str, "%Y-%m-%d").timestamp(), 0)
+            return (datetime.strptime(date_str, "%Y-%m-%d"), 0)
         except ValueError:
             pass
-    return (float('inf'), entry.get('game_id'))
+    return (datetime.min, entry.get('game_id'))
 
-if __name__ == "__main__":
+def scrape_and_write():
     game_ids = range(1, 10000)
     scraped_data = scrapeGames(game_ids)
 
@@ -139,3 +141,20 @@ if __name__ == "__main__":
         json.dump(sorted_jeopardy_games, f, indent=4)
 
     print("Data has been written to jeopardy_games.json")
+
+def schedule_scraping():
+    schedule.every(24).hours.do(scrape_and_write)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+if __name__ == "__main__":
+    scrape_and_write()
+
+    scraping_thread = threading.Thread(target=schedule_scraping)
+    scraping_thread.daemon = True
+    scraping_thread.start()
+
+    while True:
+        time.sleep(1)
