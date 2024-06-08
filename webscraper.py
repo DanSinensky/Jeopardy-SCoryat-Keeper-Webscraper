@@ -113,11 +113,9 @@ async def scrapeGame(game_id, semaphore, retries=3):
                 else:
                     return {'game_id': game_id, 'error': 'Failed after multiple retries'}
 
-async def scrapeGames(game_ids, max_concurrent_requests=10):
-    semaphore = asyncio.Semaphore(max_concurrent_requests)
-    tasks = []
-    for game_id in game_ids:
-        tasks.append(scrapeGame(game_id, semaphore))
+async def scrapeGames(game_ids):
+    semaphore = asyncio.Semaphore(10)
+    tasks = [scrapeGame(game_id, semaphore) for game_id in game_ids]
 
     results = await asyncio.gather(*tasks)
     return results
