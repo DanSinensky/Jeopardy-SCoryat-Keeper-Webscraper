@@ -1,1 +1,1 @@
-web: gunicorn webscraper:app
+web: gunicorn webscraper:app --workers 1
