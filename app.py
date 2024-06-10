@@ -42,7 +42,7 @@ def get_game_by_id(game_id):
         games_data = json.load(f)
 
     for game in games_data:
-        if 'error' not in game and game['game_id'].endswith(str(game_id)) and game['game_id'].startswith(str(game_id)):
+        if 'error' not in game and game['game_id'] == game_id:
             return jsonify(game)
     return jsonify({'error': f'Game {game_id} not found'}), 404
 
