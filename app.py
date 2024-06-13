@@ -3,34 +3,50 @@ import ijson
 from flask import Flask, jsonify, request
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
-import atexit
+import boto3
 
 app = Flask(__name__)
+
+def download_from_s3(bucket, object_name, file_name):
+    s3_client = boto3.client('s3',
+                             aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
+                             aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
+    try:
+        s3_client.download_file(bucket, object_name, file_name)
+    except Exception as e:
+        print(f"Error downloading file from S3: {e}")
+        return False
+    return True
+
+def get_games_data():
+    file_name = 'jeopardy_games.json'
+    if not os.path.exists(file_name):
+        if not download_from_s3(os.environ['S3_BUCKET_NAME'], file_name, file_name):
+            return None
+
+    with open(file_name, 'r') as f:
+        return json.load(f)
 
 @app.route('/api/games', methods=['GET'])
 def get_all_games():
     page = request.args.get('page', default=1, type=int)
     size = request.args.get('size', default=10, type=int)
 
+    games_data = get_games_data()
+    if games_data is None:
+        return jsonify({'error': 'Error retrieving data'}), 500
+
     start = (page - 1) * size
     end = start + size
 
-    games_data = []
-    with open('jeopardy_games.json', 'r') as f:
-        parser = ijson.parse(f)
-        for prefix, event, value in parser:
-            if prefix.endswith('.game_id'):
-                if len(games_data) >= end:
-                    break
-                games_data.append(value)
-
+    total_games = len(games_data)
     paginated_games = games_data[start:end]
 
     response = {
         'page': page,
         'size': size,
-        'total_games': len(games_data),
-        'total_pages': (len(games_data) + size - 1) // size,
+        'total_games': total_games,
+        'total_pages': (total_games + size - 1) // size,
         'games': paginated_games
     }
 
@@ -38,8 +54,9 @@ def get_all_games():
 
 @app.route('/api/games/ids/<int:game_id>', methods=['GET'])
 def get_game_by_id(game_id):
-    with open('jeopardy_games.json', 'r') as f:
-        games_data = json.load(f)
+    games_data = get_games_data()
+    if games_data is None:
+        return jsonify({'error': 'Error retrieving data'}), 500
 
     for game in games_data:
         if 'error' not in game and game['game_id'] == game_id:
@@ -48,11 +65,12 @@ def get_game_by_id(game_id):
 
 @app.route('/api/games/date/<string:game_date>', methods=['GET'])
 def get_games_by_date(game_date):
-    with open('jeopardy_games.json', 'r') as f:
-        games_data = json.load(f)
+    games_data = get_games_data()
+    if games_data is None:
+        return jsonify({'error': 'Error retrieving data'}), 500
 
     games_by_date = [game for game in games_data if game.get('game_date', '').startswith(game_date)]
-    
+
     if not games_by_date:
         return jsonify({'error': f'No games found for date {game_date}'}), 404
 

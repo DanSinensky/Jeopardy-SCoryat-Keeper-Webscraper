@@ -1,8 +1,13 @@
+import boto3
+import os
 import json
 import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
 from datetime import datetime
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 async def fetch(session, url):
     async with session.get(url) as response:
@@ -22,11 +27,13 @@ async def scrapeGame(game_id, semaphore, retries=3):
     async with semaphore, aiohttp.ClientSession() as session:
         for attempt in range(retries):
             try:
+                logger.info(f"Fetching game ID {game_id}, attempt {attempt + 1}")
                 pageToScrape = await fetch(session, url)
                 soup = BeautifulSoup(pageToScrape, "html.parser")
 
                 no_game = soup.find('p', attrs={'class': 'error'})
                 if no_game:
+                    logger.warning(f"No game {game_id} in database")
                     return {'game_id': game_id, 'error': f'No game {game_id} in database'}
 
                 game_title = soup.find('div', attrs={'id': 'game_title'})
@@ -72,6 +79,7 @@ async def scrapeGame(game_id, semaphore, retries=3):
                     else:
                         final_jeopardy_response = response.get_text(strip=True)
 
+                logger.info(f"Successfully scraped game ID {game_id}")
                 return {
                     'game_id': game_id,
                     'game_title': game_title_text,
@@ -96,11 +104,12 @@ async def scrapeGame(game_id, semaphore, retries=3):
                 }
 
             except aiohttp.ClientError as e:
-                print(f"Game ID {game_id} generated an exception: {e}")
+                logger.error(f"Game ID {game_id} generated an exception: {e}")
                 if attempt < retries - 1:
                     await asyncio.sleep(2 ** attempt)
                 else:
                     return {'game_id': game_id, 'error': 'Failed after multiple retries'}
+
 
 async def scrapeGames(game_ids):
     semaphore = asyncio.Semaphore(10)
@@ -118,17 +127,50 @@ def sort_key(entry):
             pass
     return (datetime.min, entry.get('game_id'))
 
+def upload_to_s3(file_name, bucket, object_name=None):
+    if object_name is None:
+        object_name = file_name
+    
+    s3_client = boto3.client('s3',
+                             aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
+                             aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
+    try:
+        response = s3_client.upload_file(file_name, bucket, object_name)
+    except Exception as e:
+        print(f"Error uploading file to S3: {e}")
+        return False
+    return True
+
+def upload_to_s3(file_name, bucket, object_name=None):
+    if object_name is None:
+        object_name = file_name
+    
+    s3_client = boto3.client('s3',
+                             aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
+                             aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
+    try:
+        s3_client.upload_file(file_name, bucket, object_name)
+        logger.info(f"Successfully uploaded {file_name} to {bucket}/{object_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Error uploading file to S3: {e}")
+        return False
+
 def update_json_file():
     game_ids = range(1, 10000)
-
     scraped_data = asyncio.run(scrapeGames(game_ids))
-
     sorted_jeopardy_games = sorted(scraped_data, key=sort_key, reverse=True)
-
-    with open('jeopardy_games.json', 'w') as f:
+    file_name = 'jeopardy_games.json'
+    
+    with open(file_name, 'w') as f:
         json.dump(sorted_jeopardy_games, f, indent=4)
+    
+    logger.info("Data has been written to jeopardy_games.json")
 
-    print("Data has been written to jeopardy_games.json")
+    if upload_to_s3(file_name, os.environ['S3_BUCKET_NAME']):
+        logger.info("Data successfully uploaded to S3")
+    else:
+        logger.error("Failed to upload data to S3")
 
 if __name__ == "__main__":
     update_json_file()
