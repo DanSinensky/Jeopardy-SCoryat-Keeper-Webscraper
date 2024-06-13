@@ -15,20 +15,22 @@ def get_all_games():
     start = (page - 1) * size
     end = start + size
 
-    try:
-        with open('jeopardy_games.json', 'r') as f:
-            games_data = json.load(f)
-    except Exception as e:
-        return jsonify({'error': f'Error reading data: {e}'}), 500
+    games_data = []
+    with open('jeopardy_games.json', 'r') as f:
+        parser = ijson.parse(f)
+        for prefix, event, value in parser:
+            if prefix.endswith('.game_id'):
+                if len(games_data) >= end:
+                    break
+                games_data.append(value)
 
-    total_games = len(games_data)
     paginated_games = games_data[start:end]
 
     response = {
         'page': page,
         'size': size,
-        'total_games': total_games,
-        'total_pages': (total_games + size - 1) // size,
+        'total_games': len(games_data),
+        'total_pages': (len(games_data) + size - 1) // size,
         'games': paginated_games
     }
 
