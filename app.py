@@ -1,8 +1,6 @@
 import json
-import ijson
 from flask import Flask, jsonify, request
 import os
-from apscheduler.schedulers.background import BackgroundScheduler
 import boto3
 
 app = Flask(__name__)
@@ -13,10 +11,11 @@ def download_from_s3(bucket, object_name, file_name):
                              aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
     try:
         s3_client.download_file(bucket, object_name, file_name)
+        logger.info(f"Successfully downloaded {object_name} from {bucket}")
+        return True
     except Exception as e:
-        print(f"Error downloading file from S3: {e}")
+        logger.error(f"Error downloading file from S3: {e}")
         return False
-    return True
 
 def get_games_data():
     file_name = 'jeopardy_games.json'

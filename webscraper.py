@@ -1,10 +1,11 @@
-import boto3
-import os
 import json
 import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
 from datetime import datetime
+import boto3
+import os
+import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -157,7 +158,7 @@ def upload_to_s3(file_name, bucket, object_name=None):
         return False
 
 def update_json_file():
-    game_ids = range(1, 10000)
+    game_ids = range(1, 10001)
     scraped_data = asyncio.run(scrapeGames(game_ids))
     sorted_jeopardy_games = sorted(scraped_data, key=sort_key, reverse=True)
     file_name = 'jeopardy_games.json'
