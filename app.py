@@ -19,12 +19,16 @@ def download_from_s3(bucket, object_name, file_name):
 
 def get_games_data():
     file_name = 'jeopardy_games.json'
-    if not os.path.exists(file_name):
-        if not download_from_s3(os.environ['S3_BUCKET_NAME'], file_name, file_name):
+    if download_from_s3(os.environ['S3_BUCKET_NAME'], file_name, file_name):
+        try:
+            with open(file_name, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading file {file_name}: {e}")
             return None
+    else:
+        return None
 
-    with open(file_name, 'r') as f:
-        return json.load(f)
 
 @app.route('/api/games', methods=['GET'])
 def get_all_games():
