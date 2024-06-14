@@ -10,6 +10,8 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+logger.info("Starting web scraper")
+
 async def fetch(session, url):
     async with session.get(url) as response:
         return await response.text()
@@ -174,4 +176,8 @@ def update_json_file():
         logger.error("Failed to upload data to S3")
 
 if __name__ == "__main__":
-    update_json_file()
+    try:
+        update_json_file()
+        logger.info("Web scraper finished successfully")
+    except Exception as e:
+        logger.error(f"Web scraper encountered an error: {e}")
