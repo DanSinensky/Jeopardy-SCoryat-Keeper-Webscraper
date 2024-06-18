@@ -140,7 +140,7 @@ def upload_to_s3(file_name, bucket, object_name=None):
     try:
         response = s3_client.upload_file(file_name, bucket, object_name)
     except Exception as e:
-        print(f"Error uploading file to S3: {e}")
+        logger.error(f"Error uploading file to S3: {e}")
         return False
     return True
 
